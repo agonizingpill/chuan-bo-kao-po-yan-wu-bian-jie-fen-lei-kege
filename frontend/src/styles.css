@@ -86,7 +86,7 @@ td a { font: 600 .9rem var(--mono); }
 .pill { display: inline-flex; align-items: center; gap: 5px; padding: .25rem .48rem; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; font-size: .76rem; }
 .pill i { width: 6px; height: 6px; background: currentColor; border-radius: 50%; }
 .pill.confirmed, .pill.completed, .pill.closed, .pill.ready { color: var(--sea); }
-.pill.margin_review, .pill.failed { color: var(--amber); }
+.pill.margin_review, .pill.failed, .pill.recall_pending { color: var(--amber); }
 .measurements, .feature-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; margin: 15px 0 11px; }
 .feature-list { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .measurements div, .feature-list div { border-left: 1px solid var(--line); padding-left: 9px; }
@@ -131,6 +131,8 @@ textarea { resize: vertical; }
 .event-note span { display: block; color: var(--muted); margin-bottom: 3px; font: .8rem var(--mono); }
 .boundary { border: 1px solid var(--line); margin-top: 14px; padding: 0 14px; }
 .boundary .section-head { padding: 11px 0; }
+.order-state { border: 1px solid var(--line); margin-top: 14px; padding: 2px 14px 12px; }
+.order-state h3 { padding-top: 9px; }
 .score { color: var(--amber); }
 .decision-chart { position: relative; height: 34px; margin-top: 7px; }
 .axis { position: absolute; background: var(--line); top: 17px; height: 2px; width: 100%; }

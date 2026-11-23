@@ -1,12 +1,12 @@
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import select
 
 from . import incidents, planning
 from .database import Session
-from .models import Audit, Berth, BerthRequest, DelayIncident, DispatchReview, Role, TideWindow, Tug, TugAssignment, User
-from .schemas import AssignTug, CloseInput, DispatchInput, IncidentInput, Login, MarginDecision, RequestInput, Schedule, TideInput
+from .models import Audit, Berth, BerthRequest, DelayIncident, DispatchReview, Role, StandbyRecall, StandbyReceipt, TideWindow, Tug, TugAssignment, User
+from .schemas import AssignTug, CloseInput, DispatchInput, IncidentInput, Login, MarginDecision, OrderNote, RecallInput, RequestInput, Schedule, TideInput
 from .security import current_user, permitted, token_for, valid_password
 
 router = APIRouter()
@@ -47,6 +47,8 @@ def watch(user: User = read):
             'assignments': [row(item) for item in db.scalars(select(TugAssignment).order_by(TugAssignment.starts_at))],
             'incidents': [row(item) for item in db.scalars(select(DelayIncident).order_by(DelayIncident.observed_at.desc()))],
             'reviews': [row(item) for item in db.scalars(select(DispatchReview).order_by(DispatchReview.issued_at.desc()))],
+            'recalls': [row(item) for item in db.scalars(select(StandbyRecall).order_by(StandbyRecall.issued_at.desc()))],
+            'receipts': [row(item) for item in db.scalars(select(StandbyReceipt).order_by(StandbyReceipt.received_at.desc()))],
         }
 
 
@@ -119,6 +121,26 @@ def review_incident(code: str, data: MarginDecision, user: User = supervise):
 def issue_action(code: str, data: DispatchInput, user: User = supervise):
     with Session.begin() as db:
         return row(incidents.dispatch(db, user.username, code, data))
+
+
+@router.post('/delay-incidents/{code}/recall')
+def recall_order(code: str, data: RecallInput, response: Response, user: User = supervise):
+    with Session.begin() as db:
+        recall, created = incidents.recall_standby(db, user.username, code, data)
+        response.status_code = 201 if created else 200
+        return row(recall)
+
+
+@router.post('/delay-incidents/{code}/recall/confirm')
+def confirm_recall(code: str, data: OrderNote, user: User = supervise):
+    with Session.begin() as db:
+        return row(incidents.confirm_recall(db, user.username, code, data))
+
+
+@router.post('/delay-incidents/{code}/standby-receipt', status_code=201)
+def record_receipt(code: str, data: OrderNote, user: User = supervise):
+    with Session.begin() as db:
+        return row(incidents.record_receipt(db, user.username, code, data))
 
 
 @router.post('/delay-incidents/{code}/close')

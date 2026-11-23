@@ -70,6 +70,14 @@ class DispatchInput(Payload):
     instruction: Note
 
 
+class RecallInput(Payload):
+    reason: Note
+
+
+class OrderNote(Payload):
+    note: Note
+
+
 class CloseInput(Payload):
     all_fast_at: NaiveDatetime
     outcome: Note

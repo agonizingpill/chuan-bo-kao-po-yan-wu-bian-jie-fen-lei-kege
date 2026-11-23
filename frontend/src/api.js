@@ -31,6 +31,9 @@ export const api = {
   report: data => request('/delay-incidents', 'POST', data),
   verify: (code, data) => request(`/delay-incidents/${encodeURIComponent(code)}/margin-review`, 'POST', data),
   dispatch: (code, data) => request(`/delay-incidents/${encodeURIComponent(code)}/dispatch`, 'POST', data),
+  recall: (code, data) => request(`/delay-incidents/${encodeURIComponent(code)}/recall`, 'POST', data),
+  recallConfirm: (code, data) => request(`/delay-incidents/${encodeURIComponent(code)}/recall/confirm`, 'POST', data),
+  standbyReceipt: (code, data) => request(`/delay-incidents/${encodeURIComponent(code)}/standby-receipt`, 'POST', data),
   close: (code, data) => request(`/delay-incidents/${encodeURIComponent(code)}/close`, 'POST', data),
   retry: code => request(`/delay-incidents/${encodeURIComponent(code)}/retry`, 'POST'),
 };

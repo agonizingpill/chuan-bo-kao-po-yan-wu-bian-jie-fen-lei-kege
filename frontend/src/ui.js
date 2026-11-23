@@ -36,6 +36,10 @@ export const eventNames = {
   INCIDENT_QUEUED: '登记现场延误', INCIDENT_REQUEUED: '重试模型', MODEL_FAILED: '模型计算失败', MODEL_CLASSIFIED: '模型分类',
   MARGIN_REVIEWED: '主管签署分类', MARGIN_REVIEW_REQUIRED: '间隔带未复核', ACTION_ISSUED: '发布调度指令', REVIEW_CLOSED: '完成复盘',
   PRIORITY_ACTION_REQUIRED: '处置级别不符', ALL_FAST_TIME: '复盘时间不符',
+  DECISION_OVERRIDDEN: '主管复核改判', RECALL_ISSUED: '发布撤回指令', RECALL_CONFIRMED: '拖轮确认撤回', STANDBY_RECEIPT: '登记待命回执',
+  RECALL_STATE: '撤回状态不符', RECALL_ACTION: '非待命指令', RECALL_DECISION: '改判条件不符', RECALL_PENDING: '撤回待确认',
+  RECALL_MISSING: '无撤回指令', RECALL_RECONFIRM: '重复撤回确认', RECEIPT_ACTION: '非待命回执', RECEIPT_CLOSED: '结案后回执',
+  RECEIPT_DUPLICATE: '重复待命回执',
 };
 
 export function journal(events) {

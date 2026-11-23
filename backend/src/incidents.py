@@ -6,9 +6,9 @@ from sqlalchemy.orm import Session as DatabaseSession
 
 from .classifier import snapshot_digest
 from .database import WAKE_QUEUE, queue
-from .models import Action, BerthRequest, DelayClass, DelayIncident, DispatchReview, IncidentState, RequestState
+from .models import Action, BerthRequest, DelayClass, DelayIncident, DispatchReview, IncidentState, RequestState, StandbyRecall, StandbyReceipt
 from .planning import Rejected, audit, find, require_window, tide_clearance, utc_now
-from .schemas import CloseInput, DispatchInput, IncidentInput, MarginDecision
+from .schemas import CloseInput, DispatchInput, IncidentInput, MarginDecision, OrderNote, RecallInput
 
 log = logging.getLogger(__name__)
 
@@ -86,10 +86,66 @@ def dispatch(db: DatabaseSession, actor: str, code: str, data: DispatchInput):
     return record
 
 
+def recall_standby(db: DatabaseSession, actor: str, code: str, data: RecallInput):
+    incident = find(db, DelayIncident, code, lock=True)
+    existing = db.get(StandbyRecall, code)
+    if existing:
+        # 撤回指令按案件幂等：发送失败后重试直接返回已发出的指令，不重复发令。
+        return existing, False
+    if incident.state != IncidentState.ACTIONED:
+        raise Rejected('RECALL_STATE', '只有已发布指令且未结案的案件可以撤回待命', code)
+    record = find(db, DispatchReview, code)
+    if record.action != Action.STANDBY:
+        raise Rejected('RECALL_ACTION', '只有拖轮待命指令可以撤回', code)
+    if incident.decision != DelayClass.PRIORITY:
+        raise Rejected('RECALL_DECISION', '只有优先处置的案件可以改判常规', code)
+    incident.decision = DelayClass.ROUTINE
+    recall = StandbyRecall(incident_code=code, reason=data.reason, issued_by=actor, issued_at=utc_now())
+    db.add(recall)
+    audit(db, actor, code, 'DECISION_OVERRIDDEN', f'priority → routine · {data.reason}')
+    audit(db, actor, code, 'RECALL_ISSUED', '撤回拖轮待命指令 · 等待拖轮确认')
+    return recall, True
+
+
+def confirm_recall(db: DatabaseSession, actor: str, code: str, data: OrderNote):
+    find(db, DelayIncident, code, lock=True)
+    recall = db.get(StandbyRecall, code)
+    if not recall:
+        raise Rejected('RECALL_MISSING', '本案尚未发出撤回指令', code)
+    if recall.confirmed_at:
+        raise Rejected('RECALL_RECONFIRM', '撤回指令已确认，请勿重复登记', code)
+    recall.confirm_note = data.note
+    recall.confirmed_by = actor
+    recall.confirmed_at = utc_now()
+    audit(db, actor, code, 'RECALL_CONFIRMED', data.note)
+    return recall
+
+
+def record_receipt(db: DatabaseSession, actor: str, code: str, data: OrderNote):
+    incident = find(db, DelayIncident, code, lock=True)
+    record = db.get(DispatchReview, code)
+    if not record or record.action != Action.STANDBY:
+        raise Rejected('RECEIPT_ACTION', '只有已发布的拖轮待命指令需要签收回执', code)
+    if incident.state == IncidentState.CLOSED:
+        raise Rejected('RECEIPT_CLOSED', '案件已结案，无法再登记待命回执', code)
+    if db.get(StandbyReceipt, code):
+        raise Rejected('RECEIPT_DUPLICATE', '待命回执已登记，请勿重复签收', code)
+    receipt = StandbyReceipt(incident_code=code, note=data.note, received_by=actor, received_at=utc_now())
+    db.add(receipt)
+    # 迟到的回执只补记原待命指令的签收情况，不触碰已发出的撤回。
+    late = db.get(StandbyRecall, code) is not None
+    suffix = ' · 撤回已发出，回执仅记录原指令签收' if late else ''
+    audit(db, actor, code, 'STANDBY_RECEIPT', f'{data.note}{suffix}')
+    return receipt
+
+
 def close(db: DatabaseSession, actor: str, code: str, data: CloseInput):
     incident = find(db, DelayIncident, code, lock=True)
     if incident.state != IncidentState.ACTIONED:
         raise Rejected('CLOSE_STATE', '请先发布调度动作再结案', code)
+    recall = db.get(StandbyRecall, code)
+    if recall and not recall.confirmed_at:
+        raise Rejected('RECALL_PENDING', '撤回指令尚未经拖轮确认，确认后才能结案', code)
     record = find(db, DispatchReview, code)
     request = find(db, BerthRequest, incident.request_code, lock=True)
     if data.all_fast_at < incident.observed_at:

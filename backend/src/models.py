@@ -138,6 +138,25 @@ class DispatchReview(Base):
     closed_at = mapped_column(DateTime)
 
 
+class StandbyRecall(Base):
+    __tablename__ = 'standby_recalls'
+    incident_code = mapped_column(ForeignKey('delay_incidents.code'), primary_key=True)
+    reason = mapped_column(String(300), nullable=False)
+    issued_by = mapped_column(ForeignKey('users.username'), nullable=False)
+    issued_at = mapped_column(DateTime, nullable=False)
+    confirm_note = mapped_column(String(300))
+    confirmed_by = mapped_column(ForeignKey('users.username'))
+    confirmed_at = mapped_column(DateTime)
+
+
+class StandbyReceipt(Base):
+    __tablename__ = 'standby_receipts'
+    incident_code = mapped_column(ForeignKey('delay_incidents.code'), primary_key=True)
+    note = mapped_column(String(300), nullable=False)
+    received_by = mapped_column(ForeignKey('users.username'), nullable=False)
+    received_at = mapped_column(DateTime, nullable=False)
+
+
 class Audit(Base):
     __tablename__ = 'audit_events'
     id = mapped_column(Integer, primary_key=True)
